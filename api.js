@@ -103,6 +103,9 @@ module.exports = {
       }
       const dataFile = `content/${request.params.folder}/sessions/${session.name}.json`;
       const data = getSession(request.params.folder);
+      if (!data.resume || Array.isArray(data.resume)) {
+        data.resume = {};
+      }
       data.resume[request.params.id] = data.resume[request.params.id] || {};
       data.resume[request.params.id][request.params.type] = request.body.data;
       fs.writeFileSync(dataFile, JSON.stringify(data));
@@ -138,8 +141,15 @@ module.exports = {
         name: request.query?.session
       });
       const data = getSession(request.params.folder);
+      let result = {};
+      if (Array.isArray(data.resume)) {
+        result = data.resume[0] || {};
+      }
+      else if (data.resume?.[request.params.id]) {
+        result = data.resume[request.params.id][request.params.type] || {};
+      }
       response.set('Content-Type', 'application/json');
-      response.end(JSON.stringify(data?.[0] || {}));
+      response.end(JSON.stringify(result));
     }
     catch (error) {
       handleError(error, response);
@@ -874,7 +884,7 @@ const manageSession = (folder, options, getSessions) => {
   }
   if (folder && session.name != 'null' && !fs.existsSync(sessionFile)) {
     fs.writeFileSync(sessionFile, JSON.stringify({
-      resume: []
+      resume: {}
     }));
   }
   if (folder && getSessions) {
@@ -910,9 +920,26 @@ const resetContentUserData = (folder) => {
     }
     const dataFile = path.join(sessionsDir, file);
     const data = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
-    data.resume.forEach(entry => {
-      entry.state = null; // Means to reset state for H5P core
-    });
+    if (Array.isArray(data.resume)) {
+      data.resume.forEach(entry => {
+        if (entry && typeof entry === 'object') {
+          entry.state = null; // Means to reset state for H5P core
+        }
+      });
+    }
+    else if (data.resume && typeof data.resume === 'object') {
+      for (const id in data.resume) {
+        const types = data.resume[id];
+        if (typeof types !== 'object') {
+          continue;
+        }
+        for (const type in types) {
+          if (types[type] && typeof types[type] === 'object') {
+            types[type].state = null;
+          }
+        }
+      }
+    }
     fs.writeFileSync(dataFile, JSON.stringify(data, null, 2));
   });
 };
