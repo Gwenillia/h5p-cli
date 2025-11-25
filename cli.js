@@ -262,8 +262,8 @@ const cli = {
         if (fs.existsSync(pathToNodeModules)) {
           fs.rmSync(pathToNodeModules, { recursive: true, force: true });
         }
-        console.log(`>>> npm install ${target}`);
-        console.log(execSync('npm install', {cwd: target}).toString());
+        console.log(`>>> npm install --ignore-script ${target}`);
+        console.log(execSync('npm install --ignore-script', {cwd: target}).toString());
         console.log(`>>> npm run build ${target}`);
         console.log(execSync('npm run build', {cwd: target}).toString());
       }
