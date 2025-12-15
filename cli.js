@@ -20,11 +20,12 @@ const handleMissingOptionals = (missingOptionals, result, item) => {
     if (!missingOptionals[item]) {
       missingOptionals[item] = result[item];
     }
+  } else {
+    throw new Error(
+      `unregistered ${item} library required by ${result[item].parent}`
+    );
   }
-  else {
-    throw new Error(`unregistered ${item} library required by ${result[item].parent}`);
-  }
-}
+};
 const cli = {
   // exports content type as .h5p zipped file
   export: async (library, folder) => {
@@ -241,13 +242,29 @@ const cli = {
         execSync(`cp -r ${tmpTarget} ${target}`);
         fs.rmSync(tmpTarget, { recursive: true, force: true });
         const targetLibraryJson = JSON.parse(fs.readFileSync(`${target}/library.json`));
-        for (let item of targetLibraryJson.preloadedJs) {
-          item.path = `${target}/${item.path}`;
-          libraryJson.preloadedJs.push(item);
+
+        if (Array.isArray(targetLibraryJson.preloadedJs) &&
+            Array.isArray(libraryJson.preloadedJs)) {
+
+          for (const item of targetLibraryJson.preloadedJs) {
+            if (!item?.path) continue;
+            libraryJson.preloadedJs.push({
+              ...item,
+              path: `${target}/${item.path}`
+            });
+          }
         }
-        for (let item of targetLibraryJson.preloadedCss) {
-          item.path = `${target}/${item.path}`;
-          libraryJson.preloadedCss.push(item);
+
+        if (Array.isArray(targetLibraryJson.preloadedCss) &&
+            Array.isArray(libraryJson.preloadedCss)) {
+
+          for (const item of targetLibraryJson.preloadedCss) {
+            if (!item?.path) continue;
+            libraryJson.preloadedCss.push({
+              ...item,
+              path: `${target}/${item.path}`
+            });
+          }
         }
         const packageFile = `${target}/package.json`;
         if (!fs.existsSync(packageFile)) {
@@ -258,12 +275,12 @@ const cli = {
           continue;
         }
         const pathToNodeModules = path.resolve(process.cwd(), target, 'node_modules');
-        // Delete node_modules if it exists
+        // // Delete node_modules if it exists
         if (fs.existsSync(pathToNodeModules)) {
           fs.rmSync(pathToNodeModules, { recursive: true, force: true });
         }
-        console.log(`>>> npm install ${target}`);
-        console.log(execSync('npm install', {cwd: target}).toString());
+        console.log(`>>> npm install --ignore-scripts ${target}`);
+        console.log(execSync('npm install --ignore-scripts', { cwd: target }).toString());
         console.log(`>>> npm run build ${target}`);
         console.log(execSync('npm run build', {cwd: target}).toString());
       }

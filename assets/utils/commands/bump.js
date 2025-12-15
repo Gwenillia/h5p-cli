@@ -16,9 +16,14 @@ async function bump(...inputList) {
   await input.init(true);
 
   const lib = detectLibrary(input);
-  if (!lib) return;
 
-  if (!runH5pBump(lib)) return;
+  if (!lib) {
+    return;
+  }
+
+  if (!runH5pBump(lib)) {
+    return;
+  }
 
   process.chdir(lib);
   output.printLn(`${c.blue}Changed directory back to: ${c.emphasize}${lib}${c.default}`);
@@ -31,7 +36,8 @@ async function bump(...inputList) {
 
   if (autoYes) {
     tagAndPush(version, true, true);
-  } else {
+  }
+  else {
     promptTagAndPush(version);
   }
 }
@@ -55,7 +61,8 @@ function runH5pBump(lib) {
   try {
     bumpOutput = execSync(`h5p utils increase-patch-version ${lib}`, { encoding: 'utf8' });
     output.printLn(bumpOutput.trim());
-  } catch {
+  }
+  catch {
     output.printLn(`${c.red}Failed to bump version using h5p utils.${c.default}`);
     return false;
   }
@@ -66,10 +73,14 @@ function runH5pBump(lib) {
   return true;
 }
 
+function isValidSemver(...args) {
+  return args.every(n => typeof n === 'number');
+}
+
 function getVersion() {
   const libData = repository.getLibraryData('.');
   const { majorVersion, minorVersion, patchVersion } = libData;
-  if (!majorVersion || !minorVersion || !patchVersion) {
+  if (!isValidSemver(majorVersion, minorVersion, patchVersion)) {
     output.printLn(`${c.red}Failed to read version from library.json.${c.default}`);
     return null;
   }
@@ -84,11 +95,13 @@ function stageChanges(autoYes) {
     if (autoYes) {
       output.printLn(`${c.yellow}Staging version bump automatically…${c.default}`);
       execSync(`git add library.json`, { stdio: 'inherit' });
-    } else {
+    }
+    else {
       output.printLn(`${c.yellow}Staging version bump interactively…${c.default}`);
       execSync(`git add -p library.json`, { stdio: 'inherit' });
     }
-  } catch {
+  }
+  catch {
     output.printLn(`${c.red}Git staging failed.${c.default}`);
     return false;
   }
@@ -118,14 +131,18 @@ function tagAndPush(version, doTag, doPush) {
     try {
       execSync(`git tag -a ${version} -m "${version}"`, { stdio: 'inherit' });
       output.printLn(`${c.green}Tag ${version} created.${c.default}`);
-    } catch {
-      output.printLn(`${c.red}Git tag creation failed.${c.default}`);
     }
-  } else {
+    catch {
+      output.printLn(`${c.red}Git tag creation failed.${c.default}`);
+      tagHandled = false;
+    }
+  }
+  else {
     output.printLn(`${c.yellow}Tag creation skipped.${c.default}`);
   }
 
-  if (doPush) {
+  // Only push if tag is handled correctly (or no tag was requested)
+  if (doPush && tagHandled) {
     try {
       output.printLn(`${c.blue}Pushing commits…${c.default}`);
       execSync(`git push`, { stdio: 'inherit' });
@@ -134,10 +151,15 @@ function tagAndPush(version, doTag, doPush) {
         execSync(`git push origin ${version}`, { stdio: 'inherit' });
       }
       output.printLn(`${c.green}Changes pushed successfully.${c.default}`);
-    } catch {
+    }
+    catch {
       output.printLn(`${c.red}Git push failed.${c.default}`);
     }
-  } else {
+  }
+  else if (doPush) {
+    output.printLn(`${c.red}Skipping push due to tag failure.${c.default}`);
+  }
+  else {
     output.printLn(`${c.yellow}Push aborted.${c.default}`);
   }
 }
