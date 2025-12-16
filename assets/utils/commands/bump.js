@@ -127,6 +127,8 @@ function commitChanges(version) {
 }
 
 function tagAndPush(version, doTag, doPush) {
+  let tagHandled = true;
+
   if (doTag) {
     try {
       execSync(`git tag -a ${version} -m "${version}"`, { stdio: 'inherit' });
